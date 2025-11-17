@@ -1,9 +1,13 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Serve static files from the data directory
+app.use(express.static(path.join(__dirname, "..", "data")));
 
 const clients = new Set();
 
@@ -28,6 +32,24 @@ app.get("/events", (req, res) => {
   res.write("retry: 1000\n\n");
   clients.add(res);
   req.on("close", () => clients.delete(res));
+});
+
+// Root route - serve the dashboard
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "data", "index.html"));
+});
+
+// API status endpoint
+app.get("/api/status", (req, res) => {
+  res.json({
+    status: "ok",
+    connectedClients: clients.size,
+    endpoints: {
+      ingest: "POST /ingest",
+      events: "GET /events",
+      dashboard: "GET /"
+    }
+  });
 });
 
 const PORT = process.env.PORT || 3000;
