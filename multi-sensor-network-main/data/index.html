@@ -9,20 +9,53 @@
 </head>
 <body>
     <h1>Building Environmental Monitoring</h1>
+    <div class="primary-actions">
+        <button id="add-device-btn">Add New Device</button>
+    </div>
     <div id="low-battery-alert" class="alert-box hidden">
         <p>⚠️ **Low battery warning!** Device battery is running low.</p>
         <a href="tel:0123456789" class="call-button">Call for a replacement</a>
     </div>
 
-    <div class="room-controls">
-        <label for="room-select">Select Room:</label>
-        <select id="room-select">
-            <option value="roomA">Room A (Current)</option>
-            <option value="roomB">Room B</option>
-            <option value="roomC">Room C</option>
-        </select>
-        <button id="add-device-btn">Add New Device</button>
-    </div>
+    <section class="facility-dashboard">
+        <main class="dashboard">
+            <section class="building-wrapper">
+                <div class="panel-section">
+                    <h2>Facility Map</h2>
+                    <p style="margin: 0; color: #6b7280; font-size: 14px">
+                        Hover a sensor to view its name, status and measured distance.
+                    </p>
+                    <div class="legend" style="margin-top: 12px">
+                        <div class="legend-item">
+                            <span class="legend-dot online"></span>
+                            Online
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-dot offline"></span>
+                            Offline
+                        </div>
+                    </div>
+                </div>
+                <div id="buildingGrid" class="building-grid"></div>
+            </section>
+            <aside class="info-panel">
+                <div class="panel-section">
+                    <h2>Building Levels</h2>
+                    <div id="levelSwitcher" class="level-switcher"></div>
+                </div>
+                <div class="panel-section">
+                    <h2>Overview</h2>
+                    <div class="status-summary" id="statusSummary"></div>
+                </div>
+                <div class="panel-section">
+                    <h2>Relative Distances</h2>
+                    <div id="relativeDistances" class="relative-list">
+                        <div class="relative-placeholder">Select a sensor on the map to compare.</div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </section>
     <div class="dashboard-container">
         <div class="sensor-card">
             <h2>Temperature</h2>

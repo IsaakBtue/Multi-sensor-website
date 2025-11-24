@@ -13,43 +13,30 @@ h1 {
     color: #005A8D;
 }
 
-/* NEW: Style for the room controls */
-.room-controls {
+.primary-actions {
+    width: 100%;
+    max-width: 800px;
     display: flex;
-    gap: 15px;
-    align-items: center;
+    justify-content: flex-start;
     margin-bottom: 20px;
-    background-color: #fff;
-    padding: 15px;
+}
+
+.primary-actions button {
+    padding: 12px 24px;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.room-controls label {
-    font-weight: bold;
-    color: #005A8D;
-}
-
-.room-controls select,
-.room-controls button {
-    padding: 10px 15px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-    font-size: 1em;
-    cursor: pointer;
-}
-
-.room-controls button {
-    background-color: #007BFF;
-    color: white;
     border: none;
-    transition: background-color 0.3s;
+    font-size: 1rem;
+    font-weight: 600;
+    background-color: #007BFF;
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.room-controls button:hover {
+.primary-actions button:hover {
     background-color: #0056b3;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
-/* END NEW */
 
 .dashboard-container {
     display: flex;
@@ -207,3 +194,260 @@ h1 {
     color: #28a745; /* Success color */
 }
 /* END NEW */
+
+/* Facility dashboard styles */
+.facility-dashboard {
+    width: 100%;
+    max-width: 1200px;
+    margin-top: 20px;
+}
+
+.facility-dashboard .dashboard {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 2fr 0.9fr;
+    gap: 24px;
+    background: #fff;
+    border-radius: 24px;
+    padding: 32px;
+    box-shadow: 0 25px 65px rgba(15, 23, 42, 0.12);
+}
+
+.building-wrapper {
+    position: relative;
+    border-radius: 32px;
+    background: #fff;
+    border: 1px solid #e1e5ec;
+    padding: 24px;
+}
+
+.building-grid {
+    position: relative;
+    width: 100%;
+    padding-top: 65%;
+    background: radial-gradient(circle at center, #fdfdfd 0%, #f3f6fb 100%);
+    border-radius: 24px;
+    border: 1px dashed #d7dde8;
+    overflow: hidden;
+}
+
+.esp-point {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.9) 0%, rgba(16, 185, 129, 0.9) 40%, rgba(4, 120, 87, 0.95) 80%);
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.35);
+}
+
+.esp-point::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.35) 0%, transparent 70%);
+    opacity: 0.85;
+    transition: opacity 0.2s ease;
+}
+
+.esp-point[data-status="inactive"] {
+    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.9) 0%, rgba(248, 113, 113, 0.95) 45%, rgba(185, 28, 28, 0.95) 80%);
+    box-shadow: 0 0 20px rgba(248, 113, 113, 0.35);
+}
+
+.esp-point[data-status="inactive"]::after {
+    background: radial-gradient(circle, rgba(248, 113, 113, 0.35) 0%, transparent 70%);
+}
+
+.esp-point:hover,
+.esp-point.selected {
+    transform: translate(-50%, -50%) scale(1.15);
+}
+
+.esp-point.selected::after {
+    opacity: 1;
+}
+
+.esp-point .tooltip {
+    position: absolute;
+    bottom: 150%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #111827;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    min-width: 120px;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    white-space: nowrap;
+}
+
+.esp-point:hover .tooltip {
+    opacity: 1;
+    transform: translate(-50%, -4px);
+}
+
+.distance-label {
+    position: absolute;
+    transform: translate(-50%, 18px) scale(0.9);
+    font-size: 11px;
+    color: #0f172a;
+    text-align: center;
+    pointer-events: none;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 4px 8px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    white-space: nowrap;
+}
+
+.distance-label.visible {
+    opacity: 1;
+    transform: translate(-50%, 12px) scale(1);
+}
+
+.info-panel {
+    border-radius: 24px;
+    border: 1px solid #e1e5ec;
+    background: linear-gradient(180deg, #f9fafb 0%, #f1f5f9 100%);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.panel-section h2 {
+    margin: 0 0 12px;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.level-switcher {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.level-button {
+    border: 1px solid #d7dde8;
+    border-radius: 16px;
+    padding: 12px 16px;
+    background: #fff;
+    color: #1f2933;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.level-button:hover {
+    border-color: #10b981;
+}
+
+.level-button.active {
+    background: #10b981;
+    color: #fff;
+    border-color: #10b981;
+}
+
+.legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 14px;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.legend-dot.online {
+    background: #10b981;
+}
+
+.legend-dot.offline {
+    background: #ef4444;
+}
+
+.status-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+}
+
+.summary-card {
+    border-radius: 18px;
+    padding: 12px 16px;
+    background: #fff;
+    border: 1px solid #d7dde8;
+}
+
+.summary-card span {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.summary-card strong {
+    display: block;
+    font-size: 20px;
+    margin-top: 6px;
+}
+
+.relative-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.relative-item {
+    display: flex;
+    justify-content: space-between;
+    background: #fff;
+    border: 1px solid #d7dde8;
+    border-radius: 14px;
+    padding: 8px 12px;
+}
+
+.relative-item strong {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.relative-placeholder {
+    font-size: 14px;
+    color: #94a3b8;
+    border: 1px dashed #cbd5f5;
+    border-radius: 14px;
+    padding: 12px;
+    text-align: center;
+}
+
+@media (max-width: 900px) {
+    body {
+        padding: 12px;
+    }
+
+    .facility-dashboard .dashboard {
+        grid-template-columns: 1fr;
+        padding: 20px;
+    }
+}

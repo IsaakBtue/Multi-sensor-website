@@ -18,8 +18,13 @@ const closeModalBtn = document.querySelector('.close-button');
 const saveDeviceBtn = document.getElementById('save-device-btn');
 const deviceCodeInput = document.getElementById('device-code-input');
 const roomNameInput = document.getElementById('room-name-input');
-const roomSelect = document.getElementById('room-select');
 const modalMessage = document.getElementById('modal-message');
+const buildingGrid = document.getElementById('buildingGrid');
+const levelSwitcher = document.getElementById('levelSwitcher');
+const statusSummary = document.getElementById('statusSummary');
+const relativeDistances = document.getElementById('relativeDistances');
+let currentSensors = [];
+let selectedSensorName = null;
 // END NEW
 
 // Initialize the Temperature graph
@@ -186,21 +191,6 @@ function handleSaveDevice() {
     if (code && roomName) {
         // --- In a real application, you would send this data to a server ---
         console.log(`Saving new device: Code=${code}, Room=${roomName}`);
-        
-        // 1. Create a new option for the dropdown
-        const newOption = document.createElement('option');
-        // A real value might be the device ID from the server
-        const optionValue = roomName.replace(/\s/g, '').toLowerCase(); 
-        newOption.value = optionValue; 
-        newOption.textContent = `${roomName}`;
-
-        // 2. Add the new option to the select dropdown
-        roomSelect.appendChild(newOption);
-        
-        // 3. Set the newly added room as the active room
-        roomSelect.value = optionValue;
-
-        // 4. Show success message
         modalMessage.textContent = `✅ Success! Device ${code} added for ${roomName}.`;
         modalMessage.classList.remove('hidden');
         
@@ -225,6 +215,204 @@ window.addEventListener('click', (event) => {
     }
 });
 // END NEW
+
+// Facility map data and interactions
+const buildingLevels = [
+    {
+        id: 'level-1',
+        label: 'Level 1',
+        sensors: [
+            { name: 'ESP-North', status: 'active', distance: '12.4 m', top: 20, left: 25 },
+            { name: 'ESP-East', status: 'active', distance: '9.8 m', top: 35, left: 70 },
+            { name: 'ESP-West', status: 'inactive', distance: '15.1 m', top: 52, left: 18 },
+            { name: 'ESP-Lab', status: 'active', distance: '7.2 m', top: 55, left: 58 },
+            { name: 'ESP-Office', status: 'inactive', distance: '5.9 m', top: 72, left: 40 },
+            { name: 'ESP-Storage', status: 'active', distance: '18.6 m', top: 78, left: 78 }
+        ]
+    },
+    {
+        id: 'level-2',
+        label: 'Level 2',
+        sensors: [
+            { name: 'ESP-North 2', status: 'active', distance: '11.1 m', top: 18, left: 30 },
+            { name: 'ESP-East 2', status: 'inactive', distance: '10.4 m', top: 33, left: 63 },
+            { name: 'ESP-West 2', status: 'active', distance: '8.6 m', top: 48, left: 20 },
+            { name: 'ESP-Lab 2', status: 'active', distance: '6.4 m', top: 50, left: 57 },
+            { name: 'ESP-Office 2', status: 'inactive', distance: '6.8 m', top: 65, left: 45 },
+            { name: 'ESP-Storage 2', status: 'active', distance: '14.2 m', top: 75, left: 75 }
+        ]
+    },
+    {
+        id: 'level-3',
+        label: 'Level 3',
+        sensors: [
+            { name: 'ESP Research', status: 'inactive', distance: '12.9 m', top: 18, left: 52 },
+            { name: 'ESP South Hall', status: 'active', distance: '20.4 m', top: 32, left: 75 },
+            { name: 'ESP Admin', status: 'active', distance: '9.3 m', top: 38, left: 33 },
+            { name: 'ESP Data Center', status: 'inactive', distance: '17.2 m', top: 58, left: 65 },
+            { name: 'ESP Breakout', status: 'active', distance: '13.7 m', top: 68, left: 35 },
+            { name: 'ESP Atrium', status: 'active', distance: '8.5 m', top: 78, left: 70 }
+        ]
+    }
+];
+
+function renderLevelButtons() {
+    levelSwitcher.innerHTML = '';
+    buildingLevels.forEach((level, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `level-button ${index === 0 ? 'active' : ''}`;
+        button.textContent = level.label;
+        button.dataset.levelId = level.id;
+        button.addEventListener('click', () => setActiveLevel(level.id));
+        levelSwitcher.appendChild(button);
+    });
+}
+
+function setActiveLevel(levelId) {
+    document.querySelectorAll('.level-button').forEach((button) => {
+        button.classList.toggle('active', button.dataset.levelId === levelId);
+    });
+
+    const level = buildingLevels.find((lvl) => lvl.id === levelId);
+    if (!level) return;
+    renderSensors(level.sensors);
+    renderSummary(level.sensors);
+}
+
+function renderSensors(sensors) {
+    currentSensors = sensors;
+    selectedSensorName = null;
+    buildingGrid.innerHTML = '';
+    sensors.forEach((sensor) => {
+        const point = document.createElement('div');
+        point.className = 'esp-point';
+        point.style.top = `${sensor.top}%`;
+        point.style.left = `${sensor.left}%`;
+        point.dataset.status = sensor.status === 'active' ? 'active' : 'inactive';
+        point.dataset.sensorName = sensor.name;
+
+        const tooltip = document.createElement('span');
+        tooltip.className = 'tooltip';
+        tooltip.textContent = `${sensor.name} • ${sensor.status === 'active' ? 'Online' : 'Offline'}`;
+        point.appendChild(tooltip);
+
+        const distance = document.createElement('span');
+        distance.className = 'distance-label';
+        point.appendChild(distance);
+
+        point.addEventListener('click', () => handleSensorClick(sensor.name));
+
+        buildingGrid.appendChild(point);
+    });
+    updateDistanceLabels();
+    updateRelativePanel();
+}
+
+function renderSummary(sensors) {
+    const activeCount = sensors.filter((sensor) => sensor.status === 'active').length;
+    const inactiveCount = sensors.length - activeCount;
+
+    statusSummary.innerHTML = `
+        <div class="summary-card">
+            <span>Active</span>
+            <strong>${activeCount}</strong>
+        </div>
+        <div class="summary-card">
+            <span>Offline</span>
+            <strong>${inactiveCount}</strong>
+        </div>
+        <div class="summary-card">
+            <span>Total Distance</span>
+            <strong>${sumDistances(sensors)}</strong>
+        </div>
+    `;
+}
+
+function sumDistances(sensors) {
+    const total = sensors.reduce((sum, sensor) => {
+        const value = parseFloat(sensor.distance);
+        return Number.isFinite(value) ? sum + value : sum;
+    }, 0);
+    return `${total.toFixed(1)} m`;
+}
+
+function handleSensorClick(sensorName) {
+    selectedSensorName = sensorName;
+    document.querySelectorAll('.esp-point').forEach((point) => {
+        point.classList.toggle('selected', point.dataset.sensorName === sensorName);
+    });
+    updateDistanceLabels();
+    updateRelativePanel();
+}
+
+function updateDistanceLabels() {
+    const selected = currentSensors.find((sensor) => sensor.name === selectedSensorName);
+    document.querySelectorAll('.distance-label').forEach((label) => {
+        label.classList.remove('visible');
+        label.textContent = '';
+    });
+    if (!selected) return;
+
+    currentSensors.forEach((sensor) => {
+        const point = buildingGrid.querySelector(`.esp-point[data-sensor-name="${sensor.name}"]`);
+        if (!point) return;
+        const label = point.querySelector('.distance-label');
+        if (!label) return;
+
+        if (sensor.name === selected.name) {
+            label.textContent = '0.0 m';
+        } else {
+            const relative = calculateRelativeDistance(selected, sensor);
+            label.textContent = formatMeters(relative);
+        }
+        label.classList.add('visible');
+    });
+}
+
+function calculateRelativeDistance(sensorA, sensorB) {
+    const deltaX = sensorA.left - sensorB.left;
+    const deltaY = sensorA.top - sensorB.top;
+    const planarDistance = Math.hypot(deltaX, deltaY);
+    return planarDistance * 0.6;
+}
+
+function formatMeters(value) {
+    return `${value.toFixed(1)} m`;
+}
+
+function updateRelativePanel() {
+    relativeDistances.innerHTML = '';
+    const selected = currentSensors.find((sensor) => sensor.name === selectedSensorName);
+
+    if (!selected) {
+        relativeDistances.innerHTML = '<div class="relative-placeholder">Select a sensor on the map to compare.</div>';
+        return;
+    }
+
+    currentSensors
+        .filter((sensor) => sensor.name !== selected.name)
+        .map((sensor) => {
+            const rawDistance = calculateRelativeDistance(selected, sensor);
+            return {
+                name: sensor.name,
+                value: rawDistance,
+                label: formatMeters(rawDistance)
+            };
+        })
+        .sort((a, b) => a.value - b.value)
+        .forEach((entry) => {
+            const row = document.createElement('div');
+            row.className = 'relative-item';
+            row.innerHTML = `<span>${entry.name}</span><strong>${entry.label}</strong>`;
+            relativeDistances.appendChild(row);
+        });
+}
+
+if (buildingGrid && levelSwitcher && statusSummary && relativeDistances) {
+    renderLevelButtons();
+    setActiveLevel(buildingLevels[0].id);
+}
 
 // Update the dashboard every 3 seconds
 setInterval(updateDashboard, 3000);
