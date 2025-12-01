@@ -11,12 +11,6 @@
 void connectToWiFi() {
     Serial.printf("Connecting to WiFi SSID '%s'...\n", WIFI_SSID);
     WiFi.mode(WIFI_STA);
-    
-    // Set Google DNS BEFORE connecting for reliable DNS resolution
-    // Router DNS may not resolve external domains properly
-    Serial.println("Configuring Google DNS (8.8.8.8, 8.8.4.4) before connecting...");
-    WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, IPAddress(8, 8, 8, 8), IPAddress(8, 8, 4, 4));
-    
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
     unsigned long start = millis();
@@ -30,6 +24,29 @@ void connectToWiFi() {
         Serial.print("WiFi connected, IP: ");
         Serial.println(WiFi.localIP());
         
+        // Get current network configuration
+        IPAddress localIP = WiFi.localIP();
+        IPAddress gateway = WiFi.gatewayIP();
+        IPAddress subnet = WiFi.subnetMask();
+        
+        // Force Google DNS - reconfigure with DNS servers
+        Serial.println("Configuring Google DNS (8.8.8.8, 8.8.4.4)...");
+        WiFi.config(localIP, gateway, subnet, IPAddress(8, 8, 8, 8), IPAddress(8, 8, 4, 4));
+        delay(2000); // Wait for DNS config to apply
+        
+        // Disconnect and reconnect to apply DNS settings
+        WiFi.disconnect();
+        delay(1000);
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+        
+        // Wait for reconnection
+        start = millis();
+        while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
+            delay(500);
+            Serial.print(".");
+        }
+        Serial.println();
+        
         // Verify DNS configuration
         IPAddress dns1 = WiFi.dnsIP(0);
         IPAddress dns2 = WiFi.dnsIP(1);
@@ -38,14 +55,24 @@ void connectToWiFi() {
         Serial.print("DNS Server 2: ");
         Serial.println(dns2);
         
-        // Test DNS resolution with a simple query
+        // Test DNS resolution
         IPAddress testIP;
-        Serial.print("Testing DNS resolution with google.com... ");
+        Serial.print("Testing DNS with google.com... ");
         if (WiFi.hostByName("google.com", testIP) == 1) {
             Serial.print("SUCCESS! IP: ");
             Serial.println(testIP);
         } else {
-            Serial.println("FAILED - DNS may not be working");
+            Serial.println("FAILED");
+        }
+        
+        // Test Vercel domain specifically
+        Serial.print("Testing DNS with multisensornetwork.vercel.app... ");
+        IPAddress vercelIP;
+        if (WiFi.hostByName("multisensornetwork.vercel.app", vercelIP) == 1) {
+            Serial.print("SUCCESS! IP: ");
+            Serial.println(vercelIP);
+        } else {
+            Serial.println("FAILED - This domain may not resolve");
         }
         
         Serial.print("Gateway will forward data to: ");
