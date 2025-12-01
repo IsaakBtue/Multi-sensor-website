@@ -223,18 +223,11 @@ void sendToServer(const Station* st) {
 #endif
 
 // Callback when data is received
-// Note: Framework version compatibility - older versions use (mac_addr, data, len)
-// Newer versions use (recvInfo, data, len) but the station framework (1.0.6) uses old signature
-#ifdef ROLE_GATEWAY
-// Gateway uses newer framework with recvInfo structure
-void OnDataRecv(const esp_now_recv_info_t* recvInfo, const uint8_t* data, int len) {
-  const uint8_t* mac_addr = recvInfo->src_addr;
-  int rssi = recvInfo->rx_ctrl.rssi;
-#else
-// Station uses older framework with direct mac_addr parameter
+// Note: Both gateway and station use framework 1.0.6 which uses the old signature
+// The old signature is: (const uint8_t* mac_addr, const uint8_t* data, int len)
 void OnDataRecv(const uint8_t* mac_addr, const uint8_t* data, int len) {
-  int rssi = 0; // RSSI not available in old framework
-#endif
+  int rssi = 0; // RSSI not directly available in old framework callback
+  // RSSI will be updated via promiscuous mode callback
   Serial.printf("\n=== ESP-NOW Packet Received ===\n");
   Serial.printf("Timestamp: %lu ms\n", millis());
   Serial.printf("From MAC: ");
