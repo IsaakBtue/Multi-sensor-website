@@ -217,39 +217,48 @@ async function updateDashboard() {
     }
 
     // --- Graph Update Logic ---
-    // Always update graphs when we have valid data (including zero values if that's what we received)
+    // Only add new data points when we receive real sensor data (non-zero values)
+    // This ensures graphs only update when actual measurements arrive, matching the 10-second station interval
     if (data.rawTemp !== null && data.rawCo2 !== null && data.rawHumidity !== null) {
-        // Add to graph - always add the latest reading to show variation
-        const previousTemp = temperatureData.length > 0 ? temperatureData[temperatureData.length - 1] : null;
+        // Check if this is real sensor data (not placeholder zeros)
+        const isRealData = data.rawTemp !== 0 || data.rawCo2 !== 0 || data.rawHumidity !== 0;
         
-        temperatureData.push(data.rawTemp);
-        co2Data.push(data.rawCo2);
-        humidityData.push(data.rawHumidity);
+        if (isRealData) {
+            // Add new data point to graphs
+            const previousTemp = temperatureData.length > 0 ? temperatureData[temperatureData.length - 1] : null;
+            
+            temperatureData.push(data.rawTemp);
+            co2Data.push(data.rawCo2);
+            humidityData.push(data.rawHumidity);
 
-        const now = new Date();
-        labels.push(`${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`);
+            const now = new Date();
+            labels.push(`${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`);
 
-        // Log temperature changes for debugging
-        if (previousTemp !== null && previousTemp !== data.rawTemp) {
-            console.log(`Temperature changed: ${previousTemp}°C → ${data.rawTemp}°C`);
+            // Log temperature changes for debugging
+            if (previousTemp !== null && previousTemp !== data.rawTemp) {
+                console.log(`Temperature changed: ${previousTemp}°C → ${data.rawTemp}°C`);
+            }
+
+            const maxPoints = 20;
+            if (labels.length > maxPoints) {
+                temperatureData.shift();
+                co2Data.shift();
+                humidityData.shift();
+                labels.shift();
+            }
+
+            // Force chart update immediately when new data arrives
+            tempChart.update('none'); // 'none' mode for instant update without animation
+            co2Chart.update('none');
+            if (humidityChart) {
+                humidityChart.update('none');
+            }
+            
+            console.log(`✓ New data point added to graphs - Temp: ${data.rawTemp}°C, CO2: ${data.rawCo2}ppm, Humidity: ${data.rawHumidity}%`);
+        } else {
+            // No real data yet - just update display values but don't add to graphs
+            console.log('No real sensor data yet (zeros received), graphs not updated');
         }
-
-        const maxPoints = 20;
-        if (labels.length > maxPoints) {
-            temperatureData.shift();
-            co2Data.shift();
-            humidityData.shift();
-            labels.shift();
-        }
-
-        // Force chart update
-        tempChart.update('none'); // 'none' mode for instant update
-        co2Chart.update('none');
-        if (humidityChart) {
-            humidityChart.update('none');
-        }
-        
-        console.log(`Graph updated - Latest temp: ${data.rawTemp}°C, CO2: ${data.rawCo2}ppm, Humidity: ${data.rawHumidity}%`);
     }
 }
 
@@ -539,8 +548,10 @@ if (buildingGrid && statusSummary && relativeDistances) {
     initializeFacilityMap();
 }
 
-// Update the dashboard every 3 seconds
-setInterval(updateDashboard, 3000);
+// Update the dashboard every 10 seconds to match station measurement interval
+// This ensures we poll for new data points at the same rate the station sends them
+const POLL_INTERVAL = 10000; // 10 seconds (matches MEASUREMENT_INTERVAL in config.h)
+setInterval(updateDashboard, POLL_INTERVAL);
 
-// Run the function once when the page first loads
+// Run the function immediately when the page first loads to show current data
 updateDashboard();
