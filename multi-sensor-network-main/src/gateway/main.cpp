@@ -29,7 +29,7 @@ void connectToWiFi() {
         IPAddress dns2 = WiFi.dnsIP(1);
         Serial.print("DNS Server 1: ");
         Serial.println(dns1);
-        if (dns2 != INADDR_NONE) {
+        if (dns2[0] != 0 || dns2[1] != 0 || dns2[2] != 0 || dns2[3] != 0) {
             Serial.print("DNS Server 2: ");
             Serial.println(dns2);
         }
