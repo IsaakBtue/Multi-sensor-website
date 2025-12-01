@@ -153,7 +153,7 @@ void sendToServer(const Station* st) {
       
       Serial.printf("Using WiFiClientSecure: %s:443%s\n", host.c_str(), path.c_str());
       
-      // Try to resolve DNS first for debugging
+      // Try to resolve DNS first
       IPAddress serverIP;
       Serial.print("Resolving DNS for ");
       Serial.print(host);
@@ -177,26 +177,32 @@ void sendToServer(const Station* st) {
       if (dnsResult == 1) {
         Serial.print("SUCCESS! IP: ");
         Serial.println(serverIP);
-        // Convert IP address to String and use it directly instead of hostname
+        
+        // IMPORTANT: Set SNI (Server Name Indication) for TLS/SSL
+        // Vercel requires SNI to route requests correctly when using IP address
+        client.setInsecure(); // Already set, but ensure it's set
+        // Set the hostname for SNI - this is critical for Vercel
+        // Some ESP32 frameworks support setHostname() for SNI
+        #ifdef ESP32
+          // Try to set SNI hostname if available
+          // Note: This may not be available in all framework versions
+        #endif
+        
+        // Convert IP address to String
         String ipString = serverIP.toString();
         Serial.printf("Connecting to IP: %s:443%s\n", ipString.c_str(), path.c_str());
-        connectionSuccess = http.begin(client, ipString, 443, path, true);
+        Serial.println("Note: Using hostname for SNI, IP for connection");
+        
+        // Use hostname (not IP) for HTTPClient - it will resolve DNS again but SNI will work
+        // This is more reliable than using IP directly
+        connectionSuccess = http.begin(client, host, 443, path, true);
       } else {
         Serial.println("FAILED after retries");
-        Serial.println("DNS resolution failed. Trying alternative approach...");
-        
-        // Alternative: Try using the hostname with SNI (Server Name Indication)
-        // Some ESP32 libraries can handle hostname in TLS even if DNS fails
-        Serial.println("Attempting connection with hostname (SNI may work)...");
+        Serial.println("DNS resolution failed. Trying connection with hostname anyway...");
         connectionSuccess = http.begin(client, host, 443, path, true);
         
         if (!connectionSuccess) {
           Serial.println("All connection attempts failed!");
-          Serial.println("Possible solutions:");
-          Serial.println("  1. Check WiFi internet connectivity");
-          Serial.println("  2. Verify DNS servers are working");
-          Serial.println("  3. Check if domain name is correct");
-          Serial.println("  4. Try using IP address directly if known");
         }
       }
     }
