@@ -141,65 +141,48 @@ void sendToServer(const Station* st) {
   #if HAS_WIFI_CLIENT_SECURE
     WiFiClientSecure client;
     client.setInsecure(); // Skip certificate validation for testing
-    client.setTimeout(20000);
+    client.setTimeout(30000); // Increase timeout for SSL handshake
     
-    // Parse HTTPS URL
-    String url = String(WEB_SERVER_URL);
-    if (url.startsWith("https://")) {
-      url = url.substring(8); // Remove "https://"
-      int pathIndex = url.indexOf('/');
-      String host = (pathIndex > 0) ? url.substring(0, pathIndex) : url;
-      String path = (pathIndex > 0) ? url.substring(pathIndex) : "/";
-      
-      Serial.printf("Using WiFiClientSecure: %s:443%s\n", host.c_str(), path.c_str());
-      
-      // Try to resolve DNS first
-      IPAddress serverIP;
-      Serial.print("Resolving DNS for ");
-      Serial.print(host);
-      Serial.print("... ");
-      
-      // Try DNS resolution with retries
-      Serial.print("Attempting DNS resolution... ");
-      int dnsResult = 0;
-      int retries = 3;
-      
-      for (int i = 0; i < retries && dnsResult != 1; i++) {
-        if (i > 0) {
-          Serial.print("Retry ");
-          Serial.print(i);
-          Serial.print("... ");
-          delay(1000);
-        }
-        dnsResult = WiFi.hostByName(host.c_str(), serverIP);
-      }
-      
-      if (dnsResult == 1) {
-        Serial.print("SUCCESS! IP: ");
-        Serial.println(serverIP);
-        
-        // IMPORTANT: Set SNI (Server Name Indication) for TLS/SSL
-        // Vercel requires SNI to route requests correctly when using IP address
-        client.setInsecure(); // Already set, but ensure it's set
-        // Set the hostname for SNI - this is critical for Vercel
-        // Some ESP32 frameworks support setHostname() for SNI
-        #ifdef ESP32
-          // Try to set SNI hostname if available
-          // Note: This may not be available in all framework versions
-        #endif
-        
-        // Use hostname (not IP) for HTTPClient - this ensures SNI is sent correctly
-        // Vercel requires SNI to route requests to the correct domain
-        Serial.printf("Connecting to hostname: %s:443%s (SNI will be sent)\n", host.c_str(), path.c_str());
-        connectionSuccess = http.begin(client, host, 443, path, true);
-      } else {
-        Serial.println("FAILED after retries");
-        Serial.println("DNS resolution failed. Trying connection with hostname anyway...");
-        connectionSuccess = http.begin(client, host, 443, path, true);
-        
-        if (!connectionSuccess) {
-          Serial.println("All connection attempts failed!");
-        }
+    // Use the full URL directly - HTTPClient will handle parsing
+    // This ensures SNI is sent correctly
+    String fullUrl = String(WEB_SERVER_URL);
+    Serial.printf("Connecting to: %s\n", fullUrl.c_str());
+    
+    // Try DNS resolution first to verify it works
+    String host = fullUrl;
+    if (host.startsWith("https://")) {
+      host = host.substring(8);
+      int pathIndex = host.indexOf('/');
+      host = (pathIndex > 0) ? host.substring(0, pathIndex) : host;
+    }
+    
+    Serial.print("Verifying DNS for ");
+    Serial.print(host);
+    Serial.print("... ");
+    IPAddress serverIP;
+    int dnsResult = WiFi.hostByName(host.c_str(), serverIP);
+    if (dnsResult == 1) {
+      Serial.print("SUCCESS! IP: ");
+      Serial.println(serverIP);
+    } else {
+      Serial.println("FAILED (will try anyway)");
+    }
+    
+    // Use begin() with full URL and client - this should handle SNI automatically
+    Serial.println("Establishing HTTPS connection...");
+    connectionSuccess = http.begin(client, fullUrl);
+    
+    if (!connectionSuccess) {
+      Serial.println("ERROR: http.begin() failed");
+      Serial.println("Trying alternative method with hostname and path...");
+      // Fallback: try with hostname and path separately
+      String path = fullUrl;
+      if (path.startsWith("https://")) {
+        path = path.substring(8);
+        int pathIndex = path.indexOf('/');
+        String hostOnly = (pathIndex > 0) ? path.substring(0, pathIndex) : path;
+        path = (pathIndex > 0) ? path.substring(pathIndex) : "/";
+        connectionSuccess = http.begin(client, hostOnly, 443, path, true);
       }
     }
   #else
