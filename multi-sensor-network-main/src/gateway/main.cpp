@@ -51,7 +51,20 @@ void setup() {
     Serial.println("Status: Listening for ESP-NOW packets");
     Serial.println("Action: Received data will be forwarded to web server");
     Serial.printf("Web Server: %s\n", WEB_SERVER_URL);
-    Serial.println("Waiting for sensor stations to send data...\n");
+    
+    // Print gateway MAC address for debugging
+    Serial.print("Gateway MAC Address: ");
+    uint8_t gatewayMac[6];
+    esp_read_mac(gatewayMac, ESP_MAC_WIFI_STA);
+    for (int i = 0; i < 6; ++i) {
+        Serial.printf("%02X", gatewayMac[i]);
+        if (i < 5) Serial.print(":");
+    }
+    Serial.println();
+    
+    Serial.println("Waiting for sensor stations to send data...");
+    Serial.println("(Stations should send to broadcast address FF:FF:FF:FF:FF:FF)");
+    Serial.println();
 }
 
 void loop() {
@@ -62,6 +75,9 @@ void loop() {
         if (WiFi.status() != WL_CONNECTED) {
             Serial.println("WiFi disconnected, attempting to reconnect...");
             connectToWiFi();
+        } else {
+            // Periodic heartbeat to show gateway is alive
+            Serial.println("[Heartbeat] Gateway is alive and listening for ESP-NOW packets...");
         }
     }
     

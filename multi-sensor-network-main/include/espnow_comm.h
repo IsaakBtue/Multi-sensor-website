@@ -216,33 +216,49 @@ void sendToServer(const Station* st) {
 // Gateway uses newer framework with recvInfo structure
 void OnDataRecv(const esp_now_recv_info_t* recvInfo, const uint8_t* data, int len) {
   const uint8_t* mac_addr = recvInfo->src_addr;
+  int rssi = recvInfo->rx_ctrl.rssi;
 #else
 // Station uses older framework with direct mac_addr parameter
 void OnDataRecv(const uint8_t* mac_addr, const uint8_t* data, int len) {
+  int rssi = 0; // RSSI not available in old framework
 #endif
   Serial.printf("\n=== ESP-NOW Packet Received ===\n");
+  Serial.printf("Timestamp: %lu ms\n", millis());
   Serial.printf("From MAC: ");
   for (int i = 0; i < 6; ++i) {
     Serial.printf("%02X", mac_addr[i]);
     if (i < 5) Serial.print(":");
   }
-  Serial.printf("\nData length: %d bytes (expected: %d bytes)\n", len, sizeof(sensor_msg));
+  Serial.printf("\nRSSI: %d dBm\n", rssi);
+  Serial.printf("Data length: %d bytes (expected: %d bytes)\n", len, sizeof(sensor_msg));
+  
+  // Print raw data bytes for debugging
+  Serial.print("Raw data (hex): ");
+  for (int i = 0; i < len && i < 20; ++i) { // Print first 20 bytes
+    Serial.printf("%02X ", data[i]);
+  }
+  if (len > 20) Serial.print("...");
+  Serial.println();
   
   Station* st = getOrCreateStation(mac_addr);
   if (st && len == sizeof(sensor_msg)) {
-    Serial.println("Valid sensor message - processing...");
+    Serial.println("✓ Valid sensor message - processing...");
     st->handleMessage(data, len);
 #ifdef ROLE_GATEWAY
     Serial.println("Forwarding to web server...");
     sendToServer(st);
+    Serial.printf("Total stations registered: %d\n", stationCount);
 #endif
     Serial.println("=== Packet Processing Complete ===\n");
   } else {
     if (!st) {
-      Serial.printf("ERROR: Cannot create station (max stations: %d, current: %d)\n", NUM_STATIONS, stationCount);
+      Serial.printf("✗ ERROR: Cannot create station (max stations: %d, current: %d)\n", NUM_STATIONS, stationCount);
+      printRegisteredStations();
     } else {
-      Serial.printf("ERROR: Invalid message length (got %d, expected %d)\n", len, sizeof(sensor_msg));
+      Serial.printf("✗ ERROR: Invalid message length (got %d, expected %d)\n", len, sizeof(sensor_msg));
+      Serial.println("This might indicate a data format mismatch between station and gateway");
     }
+    Serial.println("=== Packet Processing Failed ===\n");
   }
 }
 
