@@ -241,18 +241,25 @@ void sendToServer(const Station* st) {
   Serial.print("Sending data to server: ");
   Serial.println(payload);
   
+  // Add a small delay before POST to ensure connection is ready
+  delay(100);
+  
+  Serial.println("Attempting HTTP POST...");
   int httpCode = http.POST(payload);
+  
+  Serial.printf("HTTP POST completed, response code: %d\n", httpCode);
   
   if (httpCode > 0) {
     Serial.printf("Server response code: %d\n", httpCode);
     
     if (httpCode >= 200 && httpCode < 300) {
-      Serial.println("SUCCESS: Data sent successfully!");
+      Serial.println("✓ SUCCESS: Data sent successfully to web server!");
       String response = http.getString();
       if (response.length() > 0) {
         Serial.print("Server response: ");
         Serial.println(response);
       }
+      Serial.println("Data should now be visible on the website");
     } else if (httpCode == 308) {
       Serial.println("WARNING: 308 redirect received - POST data may be lost");
       Serial.println("This usually means the server redirected HTTP to HTTPS");
@@ -265,7 +272,38 @@ void sendToServer(const Station* st) {
       }
     }
   } else {
-    Serial.printf("Connection failed, error: %s (code: %d)\n", http.errorToString(httpCode).c_str(), httpCode);
+    Serial.printf("✗ Connection failed, error: %s (code: %d)\n", http.errorToString(httpCode).c_str(), httpCode);
+    
+    // More detailed error information
+    if (httpCode == -1) {
+      Serial.println("Error -1: Connection failed");
+      Serial.println("Possible causes:");
+      Serial.println("  1. SSL/TLS handshake failed");
+      Serial.println("  2. Server not accepting connections");
+      Serial.println("  3. Firewall blocking the connection");
+      Serial.println("  4. SNI (Server Name Indication) not working");
+    } else if (httpCode == -2) {
+      Serial.println("Error -2: Send header failed");
+    } else if (httpCode == -3) {
+      Serial.println("Error -3: Send payload failed");
+    } else if (httpCode == -4) {
+      Serial.println("Error -4: Not connected");
+    } else if (httpCode == -5) {
+      Serial.println("Error -5: Connection lost");
+    } else if (httpCode == -6) {
+      Serial.println("Error -6: No stream");
+    } else if (httpCode == -7) {
+      Serial.println("Error -7: No HTTP server");
+    } else if (httpCode == -8) {
+      Serial.println("Error -8: Too less RAM");
+    } else if (httpCode == -9) {
+      Serial.println("Error -9: Encoding");
+    } else if (httpCode == -10) {
+      Serial.println("Error -10: Stream write");
+    } else if (httpCode == -11) {
+      Serial.println("Error -11: Read timeout");
+    }
+    
     Serial.println("This may indicate HTTPS/TLS issues");
   }
   
