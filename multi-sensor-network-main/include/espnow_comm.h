@@ -188,13 +188,9 @@ void sendToServer(const Station* st) {
           // Note: This may not be available in all framework versions
         #endif
         
-        // Convert IP address to String
-        String ipString = serverIP.toString();
-        Serial.printf("Connecting to IP: %s:443%s\n", ipString.c_str(), path.c_str());
-        Serial.println("Note: Using hostname for SNI, IP for connection");
-        
-        // Use hostname (not IP) for HTTPClient - it will resolve DNS again but SNI will work
-        // This is more reliable than using IP directly
+        // Use hostname (not IP) for HTTPClient - this ensures SNI is sent correctly
+        // Vercel requires SNI to route requests to the correct domain
+        Serial.printf("Connecting to hostname: %s:443%s (SNI will be sent)\n", host.c_str(), path.c_str());
         connectionSuccess = http.begin(client, host, 443, path, true);
       } else {
         Serial.println("FAILED after retries");
