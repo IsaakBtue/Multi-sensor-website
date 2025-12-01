@@ -23,6 +23,24 @@ void connectToWiFi() {
     if (WiFi.status() == WL_CONNECTED) {
         Serial.print("WiFi connected, IP: ");
         Serial.println(WiFi.localIP());
+        
+        // Print DNS information
+        IPAddress dns1 = WiFi.dnsIP(0);
+        IPAddress dns2 = WiFi.dnsIP(1);
+        Serial.print("DNS Server 1: ");
+        Serial.println(dns1);
+        if (dns2 != INADDR_NONE) {
+            Serial.print("DNS Server 2: ");
+            Serial.println(dns2);
+        }
+        
+        // Set DNS servers explicitly if not set (use Google DNS as fallback)
+        if (dns1 == INADDR_NONE) {
+            Serial.println("No DNS server received, setting Google DNS (8.8.8.8)...");
+            WiFi.config(WiFi.localIP(), WiFi.gatewayIP(), WiFi.subnetMask(), IPAddress(8, 8, 8, 8), IPAddress(8, 8, 4, 4));
+            delay(1000); // Wait for DNS config to apply
+        }
+        
         Serial.print("Gateway will forward data to: ");
         Serial.println(WEB_SERVER_URL);
     } else {

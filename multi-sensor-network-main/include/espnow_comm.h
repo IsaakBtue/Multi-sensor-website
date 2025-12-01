@@ -152,8 +152,25 @@ void sendToServer(const Station* st) {
       String path = (pathIndex > 0) ? url.substring(pathIndex) : "/";
       
       Serial.printf("Using WiFiClientSecure: %s:443%s\n", host.c_str(), path.c_str());
-      // Use NetworkClient version: begin(NetworkClient &client, String host, uint16_t port, String uri, bool https)
-      connectionSuccess = http.begin(client, host, 443, path, true);
+      
+      // Try to resolve DNS first for debugging
+      IPAddress serverIP;
+      Serial.print("Resolving DNS for ");
+      Serial.print(host);
+      Serial.print("... ");
+      
+      // Try DNS resolution with timeout
+      int dnsResult = WiFi.hostByName(host.c_str(), serverIP);
+      if (dnsResult == 1) {
+        Serial.print("SUCCESS! IP: ");
+        Serial.println(serverIP);
+        // Use IP address directly instead of hostname
+        connectionSuccess = http.begin(client, serverIP, 443, path.c_str(), true);
+      } else {
+        Serial.println("FAILED - will try with hostname anyway");
+        // Fallback: try with hostname (might work if DNS is cached)
+        connectionSuccess = http.begin(client, host, 443, path, true);
+      }
     }
   #else
     Serial.println("ERROR: WiFiClientSecure not available");
