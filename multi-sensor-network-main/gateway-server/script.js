@@ -217,27 +217,35 @@ async function updateDashboard() {
     }
 
     // --- Graph Update Logic ---
-    // Only add new data points when we receive real sensor data (non-zero values)
-    // This ensures graphs only update when actual measurements arrive, matching the 10-second station interval
+    // Only add new data points when we receive NEW real sensor data (non-zero values that changed)
+    // This ensures graphs only update when actual new measurements arrive
     if (data.rawTemp !== null && data.rawCo2 !== null && data.rawHumidity !== null) {
         // Check if this is real sensor data (not placeholder zeros)
         const isRealData = data.rawTemp !== 0 || data.rawCo2 !== 0 || data.rawHumidity !== 0;
         
-        if (isRealData) {
-            // Add new data point to graphs
-            const previousTemp = temperatureData.length > 0 ? temperatureData[temperatureData.length - 1] : null;
-            
+        // Check if this is different from the last data we received
+        const isNewData = lastReceivedData.temperature !== data.rawTemp || 
+                         lastReceivedData.co2 !== data.rawCo2 || 
+                         lastReceivedData.humidity !== data.rawHumidity;
+        
+        if (isRealData && isNewData) {
+            // This is new real sensor data - add it to graphs with timestamp
             temperatureData.push(data.rawTemp);
             co2Data.push(data.rawCo2);
             humidityData.push(data.rawHumidity);
 
+            // Add timestamp when data was received
             const now = new Date();
-            labels.push(`${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`);
+            const timestamp = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            labels.push(timestamp);
 
-            // Log temperature changes for debugging
-            if (previousTemp !== null && previousTemp !== data.rawTemp) {
-                console.log(`Temperature changed: ${previousTemp}°C → ${data.rawTemp}°C`);
-            }
+            // Update last received data
+            lastReceivedData = {
+                temperature: data.rawTemp,
+                co2: data.rawCo2,
+                humidity: data.rawHumidity,
+                timestamp: timestamp
+            };
 
             const maxPoints = 20;
             if (labels.length > maxPoints) {
@@ -254,10 +262,13 @@ async function updateDashboard() {
                 humidityChart.update('none');
             }
             
-            console.log(`✓ New data point added to graphs - Temp: ${data.rawTemp}°C, CO2: ${data.rawCo2}ppm, Humidity: ${data.rawHumidity}%`);
-        } else {
+            console.log(`✓ New data point added to graphs at ${timestamp} - Temp: ${data.rawTemp}°C, CO2: ${data.rawCo2}ppm, Humidity: ${data.rawHumidity}%`);
+        } else if (!isRealData) {
             // No real data yet - just update display values but don't add to graphs
             console.log('No real sensor data yet (zeros received), graphs not updated');
+        } else if (!isNewData) {
+            // Same data as before - don't add duplicate point
+            // (This is normal when polling continuously - we'll see this message frequently)
         }
     }
 }
@@ -548,9 +559,16 @@ if (buildingGrid && statusSummary && relativeDistances) {
     initializeFacilityMap();
 }
 
-// Update the dashboard every 10 seconds to match station measurement interval
-// This ensures we poll for new data points at the same rate the station sends them
-const POLL_INTERVAL = 10000; // 10 seconds (matches MEASUREMENT_INTERVAL in config.h)
+// Track last received data to avoid adding duplicates
+let lastReceivedData = {
+    temperature: null,
+    co2: null,
+    humidity: null,
+    timestamp: null
+};
+
+// Poll continuously for new data (every 1 second) but only add to graph when new data arrives
+const POLL_INTERVAL = 1000; // Poll every 1 second to check for new data quickly
 setInterval(updateDashboard, POLL_INTERVAL);
 
 // Run the function immediately when the page first loads to show current data
