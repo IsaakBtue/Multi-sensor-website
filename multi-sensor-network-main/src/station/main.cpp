@@ -123,8 +123,14 @@ void setup() {
   Serial.printf("Current system state: %d\n", system_state);
   Serial.println("  (0=Initial, 1=Start Measure, 2=Read Value, 3=Calibration)\n");
 
-  switch (system_state) {  // switch case sytax note; you check the () variable against if it equals what is after case _____;
-        case STATE_START_MEASURE:
+        switch (system_state) {  // switch case sytax note; you check the () variable against if it equals what is after case _____;
+            case STATE_INITIAL_BOOT:
+                // First boot - initialize and start first measurement
+                Serial.println("First boot detected - starting initial measurement cycle");
+                system_state = STATE_START_MEASURE;
+                // Fall through to STATE_START_MEASURE
+                
+            case STATE_START_MEASURE:
 
             // We woke up from long sleep OR first boot
             if (useFan) {
@@ -252,9 +258,18 @@ void setup() {
               Serial.println("Entering deep sleep...\n"); 
               esp_deep_sleep_start();
             } else {
-              Serial.println("ERROR: Cannot sleep with negative/zero duration. Restarting...");
-              delay(1000);
-              esp_restart();
+              // If LONG_SLEEP is 0, we need to start the next cycle immediately
+              // This happens when MEASUREMENT_INTERVAL equals MEASUREMENT_DURATION
+              Serial.println("WARNING: LONG_SLEEP is 0 - starting next cycle immediately");
+              Serial.println("Consider increasing MEASUREMENT_INTERVAL or decreasing MEASUREMENT_DURATION");
+              system_state = STATE_START_MEASURE;
+              // Small delay to prevent tight loop, then continue to next cycle
+              delay(100);
+              // Don't sleep, just continue to next cycle (will restart from STATE_START_MEASURE)
+              // Actually, we need to restart the loop, so we'll use a very short sleep
+              esp_sleep_enable_timer_wakeup(100000ULL); // 0.1 second minimum sleep
+              Serial.println("Entering minimal sleep (0.1s) before next cycle...\n");
+              esp_deep_sleep_start();
             }
             break;
         }
@@ -293,11 +308,12 @@ void setup() {
           break;
             
         default:
-            // Fallback
-            Serial.println("Unknown state. Resetting cycle...");
+            // Fallback - should not happen, but handle gracefully
+            Serial.printf("ERROR: Unknown state %d. Resetting to STATE_START_MEASURE...\n", system_state);
             system_state = STATE_START_MEASURE;
-            esp_sleep_enable_timer_wakeup(1000000ULL);
-            esp_deep_sleep_start();
+            // Small delay then restart cycle
+            delay(100);
+            // Continue to next cycle without sleeping
             break;
     }
 
