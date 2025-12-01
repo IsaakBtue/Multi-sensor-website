@@ -11,10 +11,16 @@
 void connectToWiFi() {
     Serial.printf("Connecting to WiFi SSID '%s'...\n", WIFI_SSID);
     WiFi.mode(WIFI_STA);
+    
+    // Set Google DNS BEFORE connecting for reliable DNS resolution
+    // Router DNS may not resolve external domains properly
+    Serial.println("Configuring Google DNS (8.8.8.8, 8.8.4.4) before connecting...");
+    WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, IPAddress(8, 8, 8, 8), IPAddress(8, 8, 4, 4));
+    
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
     unsigned long start = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - start < 15000) {
+    while (WiFi.status() != WL_CONNECTED && millis() - start < 20000) {
         delay(500);
         Serial.print(".");
     }
@@ -24,12 +30,6 @@ void connectToWiFi() {
         Serial.print("WiFi connected, IP: ");
         Serial.println(WiFi.localIP());
         
-        // Always use Google DNS for reliable DNS resolution
-        // Router DNS (192.168.1.1) may not resolve external domains properly
-        Serial.println("Setting Google DNS (8.8.8.8, 8.8.4.4) for reliable DNS resolution...");
-        WiFi.config(WiFi.localIP(), WiFi.gatewayIP(), WiFi.subnetMask(), IPAddress(8, 8, 8, 8), IPAddress(8, 8, 4, 4));
-        delay(2000); // Wait for DNS config to apply
-        
         // Verify DNS configuration
         IPAddress dns1 = WiFi.dnsIP(0);
         IPAddress dns2 = WiFi.dnsIP(1);
@@ -37,6 +37,16 @@ void connectToWiFi() {
         Serial.println(dns1);
         Serial.print("DNS Server 2: ");
         Serial.println(dns2);
+        
+        // Test DNS resolution with a simple query
+        IPAddress testIP;
+        Serial.print("Testing DNS resolution with google.com... ");
+        if (WiFi.hostByName("google.com", testIP) == 1) {
+            Serial.print("SUCCESS! IP: ");
+            Serial.println(testIP);
+        } else {
+            Serial.println("FAILED - DNS may not be working");
+        }
         
         Serial.print("Gateway will forward data to: ");
         Serial.println(WEB_SERVER_URL);

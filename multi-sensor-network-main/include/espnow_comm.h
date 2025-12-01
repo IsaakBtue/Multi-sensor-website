@@ -159,12 +159,20 @@ void sendToServer(const Station* st) {
       Serial.print(host);
       Serial.print("... ");
       
-      // Try DNS resolution with longer timeout (10 seconds)
-      // Set DNS timeout explicitly
-      WiFi.setHostname("esp32-gateway");
+      // Try DNS resolution with retries
+      Serial.print("Attempting DNS resolution... ");
+      int dnsResult = 0;
+      int retries = 3;
       
-      Serial.print("Attempting DNS resolution (timeout: 10s)... ");
-      int dnsResult = WiFi.hostByName(host.c_str(), serverIP);
+      for (int i = 0; i < retries && dnsResult != 1; i++) {
+        if (i > 0) {
+          Serial.print("Retry ");
+          Serial.print(i);
+          Serial.print("... ");
+          delay(1000);
+        }
+        dnsResult = WiFi.hostByName(host.c_str(), serverIP);
+      }
       
       if (dnsResult == 1) {
         Serial.print("SUCCESS! IP: ");
@@ -174,14 +182,22 @@ void sendToServer(const Station* st) {
         Serial.printf("Connecting to IP: %s:443%s\n", ipString.c_str(), path.c_str());
         connectionSuccess = http.begin(client, ipString, 443, path, true);
       } else {
-        Serial.println("FAILED");
-        Serial.println("DNS resolution failed. Possible causes:");
-        Serial.println("  - Router DNS not working properly");
-        Serial.println("  - Network connectivity issues");
-        Serial.println("  - Domain name incorrect");
-        Serial.println("Attempting connection with hostname anyway (may fail)...");
-        // Fallback: try with hostname (will likely fail if DNS doesn't work)
+        Serial.println("FAILED after retries");
+        Serial.println("DNS resolution failed. Trying alternative approach...");
+        
+        // Alternative: Try using the hostname with SNI (Server Name Indication)
+        // Some ESP32 libraries can handle hostname in TLS even if DNS fails
+        Serial.println("Attempting connection with hostname (SNI may work)...");
         connectionSuccess = http.begin(client, host, 443, path, true);
+        
+        if (!connectionSuccess) {
+          Serial.println("All connection attempts failed!");
+          Serial.println("Possible solutions:");
+          Serial.println("  1. Check WiFi internet connectivity");
+          Serial.println("  2. Verify DNS servers are working");
+          Serial.println("  3. Check if domain name is correct");
+          Serial.println("  4. Try using IP address directly if known");
+        }
       }
     }
   #else
