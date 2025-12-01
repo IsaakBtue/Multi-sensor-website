@@ -123,14 +123,24 @@ function isBatteryLow() {
 async function getSensorData() {
     const apiUrl = '/api/ingest'; // Same origin as the deployed site
     try {
-        const response = await fetch(apiUrl);
+        // Add cache-busting parameter to prevent stale data
+        const response = await fetch(apiUrl + '?t=' + Date.now(), {
+            cache: 'no-store',
+            headers: {
+                'Cache-Control': 'no-cache'
+            }
+        });
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
 
+        // Debug logging
+        console.log('API Response:', data);
+
         if (!data.ok || !data.reading) {
             // Return zero values when no data is available
+            console.log('No reading available, returning zeros');
             return {
                 temperature: '0.0 °C',
                 humidity: '0.0 %',
@@ -142,6 +152,9 @@ async function getSensorData() {
         }
 
         const { temperature, co2, humidity } = data.reading;
+        
+        // Debug logging
+        console.log(`Received sensor data - Temp: ${temperature}°C, CO2: ${co2}ppm, Humidity: ${humidity}%`);
 
         return {
             temperature: `${temperature.toFixed(1)} °C`,
@@ -169,9 +182,22 @@ async function updateDashboard() {
     
     const data = await getSensorData();
 
-    // Update the HTML text displays
-    document.getElementById('temperature-value').textContent = data.temperature;
-    document.getElementById('co2-value').textContent = data.co2;
+    // Debug logging
+    console.log('Updating dashboard with:', data);
+
+    // Update the HTML text displays - force update to prevent caching
+    const tempElement = document.getElementById('temperature-value');
+    const co2Element = document.getElementById('co2-value');
+    
+    if (tempElement) {
+        tempElement.textContent = data.temperature;
+        console.log(`Temperature display updated to: ${data.temperature}`);
+    }
+    
+    if (co2Element) {
+        co2Element.textContent = data.co2;
+    }
+    
     if (humidityValueEl) {
         humidityValueEl.textContent = data.humidity;
     }
@@ -191,31 +217,39 @@ async function updateDashboard() {
     }
 
     // --- Graph Update Logic ---
-    // Only update graphs if we have real data (non-zero values indicate actual readings)
+    // Always update graphs when we have valid data (including zero values if that's what we received)
     if (data.rawTemp !== null && data.rawCo2 !== null && data.rawHumidity !== null) {
-        // Only add to graph if values are non-zero (real data)
-        if (data.rawTemp !== 0 || data.rawCo2 !== 0 || data.rawHumidity !== 0) {
-            temperatureData.push(data.rawTemp);
-            co2Data.push(data.rawCo2);
-            humidityData.push(data.rawHumidity);
+        // Add to graph - always add the latest reading to show variation
+        const previousTemp = temperatureData.length > 0 ? temperatureData[temperatureData.length - 1] : null;
+        
+        temperatureData.push(data.rawTemp);
+        co2Data.push(data.rawCo2);
+        humidityData.push(data.rawHumidity);
 
-            const now = new Date();
-            labels.push(`${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`);
+        const now = new Date();
+        labels.push(`${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`);
 
-            const maxPoints = 20;
-            if (labels.length > maxPoints) {
-                temperatureData.shift();
-                co2Data.shift();
-                humidityData.shift();
-                labels.shift();
-            }
-
-            tempChart.update();
-            co2Chart.update();
-            if (humidityChart) {
-                humidityChart.update();
-            }
+        // Log temperature changes for debugging
+        if (previousTemp !== null && previousTemp !== data.rawTemp) {
+            console.log(`Temperature changed: ${previousTemp}°C → ${data.rawTemp}°C`);
         }
+
+        const maxPoints = 20;
+        if (labels.length > maxPoints) {
+            temperatureData.shift();
+            co2Data.shift();
+            humidityData.shift();
+            labels.shift();
+        }
+
+        // Force chart update
+        tempChart.update('none'); // 'none' mode for instant update
+        co2Chart.update('none');
+        if (humidityChart) {
+            humidityChart.update('none');
+        }
+        
+        console.log(`Graph updated - Latest temp: ${data.rawTemp}°C, CO2: ${data.rawCo2}ppm, Humidity: ${data.rawHumidity}%`);
     }
 }
 
