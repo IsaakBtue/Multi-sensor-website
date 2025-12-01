@@ -2,7 +2,7 @@
 #pragma once
 
 
-#define MEASUREMENT_INTERVAL 1  // Interval between measurements in seconds (1 second for testing)
+#define MEASUREMENT_INTERVAL 10  // Interval between measurements in seconds (10 seconds)
 
 #define LED_PIN GPIO_NUM_2      // GPIO pin for onboard indicator LED
 
