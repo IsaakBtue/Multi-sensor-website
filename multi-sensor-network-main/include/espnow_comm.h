@@ -164,8 +164,9 @@ void sendToServer(const Station* st) {
       if (dnsResult == 1) {
         Serial.print("SUCCESS! IP: ");
         Serial.println(serverIP);
-        // Use IP address directly instead of hostname
-        connectionSuccess = http.begin(client, serverIP, 443, path.c_str(), true);
+        // Convert IP address to String and use it directly instead of hostname
+        String ipString = serverIP.toString();
+        connectionSuccess = http.begin(client, ipString, 443, path, true);
       } else {
         Serial.println("FAILED - will try with hostname anyway");
         // Fallback: try with hostname (might work if DNS is cached)

@@ -35,7 +35,7 @@ void connectToWiFi() {
         }
         
         // Set DNS servers explicitly if not set (use Google DNS as fallback)
-        if (dns1 == INADDR_NONE) {
+        if (dns1[0] == 0 && dns1[1] == 0 && dns1[2] == 0 && dns1[3] == 0) {
             Serial.println("No DNS server received, setting Google DNS (8.8.8.8)...");
             WiFi.config(WiFi.localIP(), WiFi.gatewayIP(), WiFi.subnetMask(), IPAddress(8, 8, 8, 8), IPAddress(8, 8, 4, 4));
             delay(1000); // Wait for DNS config to apply
