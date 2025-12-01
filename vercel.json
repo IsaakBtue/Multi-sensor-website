@@ -1,24 +1,23 @@
-{
+﻿{
   "version": 2,
   "builds": [
     {
-      "src": "multi-sensor-network-main/api/**/*.js",
+      "src": "api/**/*.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/multi-sensor-network-main/api/$1"
+      "dest": "/api/$1"
     },
     {
       "src": "/(.*\\.(html|css|js|png|jpg|jpeg|gif|svg|ico))",
-      "dest": "/multi-sensor-network-main/data/$1"
+      "dest": "/multi-sensor-network-main/gateway-server/$1"
     },
     {
       "src": "/",
-      "dest": "/multi-sensor-network-main/data/index.html"
+      "dest": "/multi-sensor-network-main/gateway-server/index.html"
     }
   ]
 }
-
