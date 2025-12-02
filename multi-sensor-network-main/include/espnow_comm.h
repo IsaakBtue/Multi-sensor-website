@@ -4,6 +4,8 @@
 #include "esp_wifi.h"
 #include <HTTPClient.h>
 #include <WiFiClient.h>
+#include <stdlib.h> // For malloc/free
+#include <string.h> // For strlen
 
 #include "typedef.h"
 #include "config.h"
