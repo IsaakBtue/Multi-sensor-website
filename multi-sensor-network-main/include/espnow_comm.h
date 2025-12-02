@@ -212,7 +212,12 @@ void sendToServer(const Station* st) {
           client.stop();
         }
       } else {
-        Serial.printf("✗ Manual SSL connection failed: %d\n", client.lastError());
+        char errorBuf[256];
+        int errorCode = client.lastError(errorBuf, sizeof(errorBuf));
+        Serial.printf("✗ Manual SSL connection failed (error code: %d)\n", errorCode);
+        if (strlen(errorBuf) > 0) {
+          Serial.printf("Error details: %s\n", errorBuf);
+        }
         Serial.println("This indicates the SSL/TLS handshake cannot complete");
         Serial.println("Possible causes:");
         Serial.println("  1. TLS version mismatch (ESP32 supports TLS 1.2, server may require 1.3)");
