@@ -160,45 +160,27 @@ void sendToServer(const Station* st) {
     Serial.printf("Connecting to: %s\n", fullUrl.c_str());
     Serial.printf("Host: %s, Path: %s\n", host.c_str(), path.c_str());
     
-    // Verify DNS resolution
+    // Try DNS resolution for logging (non-blocking - HTTPClient will handle DNS)
     IPAddress serverIP;
-    Serial.print("DNS lookup... ");
+    Serial.print("DNS lookup (for info only)... ");
     int dnsResult = WiFi.hostByName(host.c_str(), serverIP);
     if (dnsResult == 1) {
       Serial.print("SUCCESS! IP: ");
       Serial.println(serverIP);
     } else {
-      Serial.println("FAILED");
-      Serial.println("Cannot resolve DNS, aborting connection");
-      return;
+      Serial.println("FAILED (HTTPClient will retry DNS)");
     }
     
-    // Try to explicitly connect the client first to test SSL
-    Serial.println("Testing SSL connection to server...");
-    Serial.printf("Connecting to %s:443...\n", host.c_str());
-    
-    // Try connecting directly with the client first
-    if (!client.connect(host.c_str(), 443)) {
-      Serial.println("ERROR: client.connect() failed - SSL handshake failed");
-      Serial.println("This indicates the SSL/TLS connection cannot be established");
-      Serial.println("Possible causes:");
-      Serial.println("  1. Router/firewall blocking SSL connections");
-      Serial.println("  2. ESP32 framework SSL/TLS implementation issue");
-      Serial.println("  3. Vercel CDN rejecting connection");
-      Serial.println("  4. SNI not being sent correctly");
-      return;
-    }
-    
-    Serial.println("✓ SSL connection established successfully!");
-    Serial.println("Setting up HTTP client...");
-    
-    // Now use the connected client with HTTPClient
+    // Use HTTPClient with hostname - it will handle DNS resolution and SNI automatically
+    // Don't pre-connect the client - let HTTPClient manage the connection
+    Serial.println("Establishing HTTPS connection via HTTPClient...");
     connectionSuccess = http.begin(client, host, 443, path, true);
     
     if (!connectionSuccess) {
-      Serial.println("ERROR: http.begin() failed even though client.connect() succeeded");
-      client.stop();
-      return;
+      Serial.println("ERROR: http.begin() failed");
+      Serial.println("Trying with full URL...");
+      // Fallback: try with full URL
+      connectionSuccess = http.begin(client, fullUrl);
     }
   #else
     Serial.println("ERROR: WiFiClientSecure not available");
