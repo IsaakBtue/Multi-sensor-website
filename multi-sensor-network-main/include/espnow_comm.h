@@ -349,9 +349,60 @@ void sendToServer(const Station* st) {
     }
     
     Serial.println("This may indicate HTTPS/TLS issues");
+    
+    // If HTTPS failed, try HTTP as absolute last resort
+    if (httpCode == -1) {
+      Serial.println("");
+      Serial.println("=== Trying HTTP fallback ===");
+      http.end(); // Clean up HTTPS connection
+      
+      WiFiClient regularClient;
+      String httpUrl = String(WEB_SERVER_URL);
+      httpUrl.replace("https://", "http://");
+      
+      Serial.printf("Attempting HTTP connection to: %s\n", httpUrl.c_str());
+      if (http.begin(regularClient, httpUrl)) {
+        http.addHeader("Content-Type", "application/json");
+        http.setTimeout(10000);
+        
+        // Rebuild payload for HTTP attempt
+        char* httpPayload = (char*)malloc(100);
+        if (httpPayload) {
+          snprintf(httpPayload, 100, 
+                   "{\"mac\":\"%s\",\"temperature\":%.2f,\"co2\":%d,\"humidity\":%.2f}",
+                   macStr, st->readings.temperature, st->readings.co2, st->readings.humidity);
+          
+          int httpCode2 = http.POST((uint8_t*)httpPayload, strlen(httpPayload));
+          free(httpPayload);
+          
+          if (httpCode2 == 308) {
+            Serial.println("HTTP returned 308 redirect - Vercel redirects HTTP to HTTPS");
+            Serial.println("POST data is lost during redirect - this won't work");
+          } else if (httpCode2 > 0) {
+            Serial.printf("HTTP response: %d\n", httpCode2);
+          }
+        }
+        http.end();
+      } else {
+        Serial.println("HTTP connection also failed");
+      }
+      Serial.println("=== End HTTP fallback ===");
+      Serial.println("");
+      Serial.println("SOLUTION REQUIRED:");
+      Serial.println("ESP32 cannot connect to Vercel CDN via HTTPS");
+      Serial.println("Options:");
+      Serial.println("1. Use a different backend (Firebase, AWS IoT, etc.)");
+      Serial.println("2. Use an HTTP-to-HTTPS bridge service");
+      Serial.println("3. Deploy to a service that supports TLS 1.2");
+      return; // Exit early to prevent heap corruption
+    }
   }
   
+  // Always clean up properly to prevent heap corruption
   http.end();
+  
+  // Small delay to let cleanup complete
+  delay(50);
 }
 #endif
 
