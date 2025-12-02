@@ -139,7 +139,15 @@ void sendToServer(const Station* st) {
   
   // Use WiFiClientSecure for HTTPS connection
   #if HAS_WIFI_CLIENT_SECURE
+    // Check free heap memory before SSL handshake (needs 40-50 KB)
+    Serial.printf("Free heap before SSL: %d bytes\n", ESP.getFreeHeap());
+    if (ESP.getFreeHeap() < 50000) {
+      Serial.println("WARNING: Low free heap memory - SSL handshake may fail");
+    }
+    
     WiFiClientSecure client;
+    
+    // Configure client for better compatibility
     client.setInsecure(); // Skip certificate validation for testing
     client.setTimeout(30000); // Increase timeout for SSL handshake
     
@@ -171,16 +179,47 @@ void sendToServer(const Station* st) {
       Serial.println("FAILED (HTTPClient will retry DNS)");
     }
     
-    // Use HTTPClient with hostname - it will handle DNS resolution and SNI automatically
-    // Don't pre-connect the client - let HTTPClient manage the connection
+    // CRITICAL: Use the hostname (not IP) in http.begin() to ensure SNI is sent
+    // SNI (Server Name Indication) is required for Vercel CDN to route correctly
     Serial.println("Establishing HTTPS connection via HTTPClient...");
+    Serial.println("Using hostname (not IP) to ensure SNI is sent correctly");
+    
+    // Method 1: Use hostname with port 443 and path - this should send SNI correctly
     connectionSuccess = http.begin(client, host, 443, path, true);
     
     if (!connectionSuccess) {
-      Serial.println("ERROR: http.begin() failed");
-      Serial.println("Trying with full URL...");
-      // Fallback: try with full URL
+      Serial.println("Method 1 failed: http.begin(host, 443, path)");
+      Serial.println("Trying Method 2: http.begin(fullUrl)...");
+      // Method 2: Try with full URL - HTTPClient should parse and set SNI
       connectionSuccess = http.begin(client, fullUrl);
+    }
+    
+    if (!connectionSuccess) {
+      Serial.println("Method 2 failed: http.begin(fullUrl)");
+      Serial.println("Trying Method 3: Manual connection with explicit SNI...");
+      
+      // Method 3: Try connecting manually first, then use connected client
+      // This gives us more control over the SSL handshake
+      Serial.printf("Attempting manual SSL connection to %s:443...\n", host.c_str());
+      if (client.connect(host.c_str(), 443)) {
+        Serial.println("✓ Manual SSL connection successful!");
+        // Now try to use the connected client
+        // Note: HTTPClient.begin() with an already-connected client may not work
+        // So we'll try a different approach - use the client directly
+        connectionSuccess = http.begin(client, host, 443, path, true);
+        if (!connectionSuccess) {
+          Serial.println("ERROR: http.begin() failed even after manual connect");
+          client.stop();
+        }
+      } else {
+        Serial.printf("✗ Manual SSL connection failed: %d\n", client.lastError());
+        Serial.println("This indicates the SSL/TLS handshake cannot complete");
+        Serial.println("Possible causes:");
+        Serial.println("  1. TLS version mismatch (ESP32 supports TLS 1.2, server may require 1.3)");
+        Serial.println("  2. Router/firewall blocking SSL connections");
+        Serial.println("  3. Vercel CDN rejecting connection without proper SNI");
+        Serial.println("  4. Certificate validation issues");
+      }
     }
   #else
     Serial.println("ERROR: WiFiClientSecure not available");
